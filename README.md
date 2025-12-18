@@ -67,12 +67,55 @@ pm2 start index.js --name "whatsapp-bot"
 3. Scan it with your WhatsApp (Linked Devices).
 4. Once "Ready", the session is saved in `.wwebjs_auth/`.
 
-### API Endpoints
-- **List Groups**: `GET /api/groups`
-- **Send Message**: 
-  - `POST /api/send-message`
-  - Body: `{"groupIds": ["xxx@g.us"], "message": "Hello!"}`
-- **Check Health**: `GET /health`
+## API Documentation (Base URL: `http://<your-ec2-ip>:3000/api`)
+
+### 1. List All Groups
+Fetch a list of all groups the bot is currently a member of.
+- **Endpoint**: `GET /groups`
+- **Response**:
+```json
+{
+  "success": true,
+  "groups": [
+    {
+      "id": "120363185313511239@g.us",
+      "name": "Family Group",
+      "participantCount": 5
+    }
+  ]
+}
+```
+
+### 2. Send Manual Message
+Broadcast a message to one or more groups simultaneously.
+- **Endpoint**: `POST /send-message`
+- **Body**:
+```json
+{
+  "groupIds": ["120363185313511239@g.us", "120363404761893588@g.us"],
+  "message": "Hello everyone! This is a manual test message."
+}
+```
+- **Response**:
+```json
+{
+  "success": true,
+  "results": [
+    { "id": "120363185313511239@g.us", "status": "sent" },
+    { "id": "120363404761893588@g.us", "status": "failed", "error": "Reason..." }
+  ]
+}
+```
+
+### 3. Get Current Config
+View the contents of your `settings.json`.
+- **Endpoint**: `GET /config`
+- **Response**: Includes `autoReplyGroups`, `autoReplyPersonal`, and `scheduledMessages`.
+
+### 4. Health Check
+Verify if the backend is running.
+- **Endpoint**: `GET /health` (Note: No `/api` prefix for this one)
+- **Response**: `{"status": "OK", "uptime": 1234.56}`
 
 ### Configuration (`config/settings.json`)
 Edit this file to enable features for specific groups:

@@ -1,6 +1,9 @@
 {
     "enabledGroups": [],
     "autoReplyGroups": [],
+    "tradingGroups": [
+        "120363185313511239@g.us"
+    ],
     "autoReplyPersonal": true,
     "scheduledMessages": [
         {

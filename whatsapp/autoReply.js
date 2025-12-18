@@ -4,6 +4,8 @@ const { generateResponse } = require('../services/groq');
 
 const settingsPath = path.join(__dirname, '../config/settings.json');
 
+const debounceTimers = new Map();
+
 /**
  * Handle incoming messages for auto-reply logic
  */
@@ -13,6 +15,9 @@ async function handleAutoReply(client, message) {
 
     // 2. Get chat info
     const chat = await message.getChat();
+    const chatId = chat.id._serialized;
+    const isGroup = chat.isGroup;
+    const senderId = isGroup ? message.author || message.from : message.from; // Use author in groups
 
     // 3. Ignore media messages
     if (message.hasMedia) return;
@@ -27,19 +32,13 @@ async function handleAutoReply(client, message) {
         return;
     }
 
-    const chatId = chat.id._serialized;
-    const isGroup = chat.isGroup;
-
-    // 5. Check if auto-reply should trigger
+    // Check if auto-reply should trigger
     let shouldReply = false;
-
     if (isGroup) {
-        // Trigger if group is in autoReplyGroups list
         if (settings.autoReplyGroups && settings.autoReplyGroups.includes(chatId)) {
             shouldReply = true;
         }
     } else {
-        // Trigger for personal chats if autoReplyPersonal is enabled
         if (settings.autoReplyPersonal) {
             shouldReply = true;
         }
@@ -47,14 +46,61 @@ async function handleAutoReply(client, message) {
 
     if (!shouldReply) return;
 
-    // 6. Generate and send reply
-    console.log(`Auto-replying to ${isGroup ? 'group' : 'private'} message from: ${chat.name || chat.id.user}`);
-    const aiReply = await generateResponse(message.body);
+    // 5. DEBOUNCING: Wait for 5 seconds of silence from THIS specific user (Anti-Ban)
+    const debounceKey = `${chatId}_${senderId}`;
+    if (debounceTimers.has(debounceKey)) {
+        clearTimeout(debounceTimers.get(debounceKey));
+    }
 
+    const timer = setTimeout(async () => {
+        debounceTimers.delete(debounceKey);
+        await processReply(chat, senderId);
+    }, 5000);
+
+    debounceTimers.set(debounceKey, timer);
+}
+
+/**
+ * Process the actual reply generation and sending
+ * @param {object} chat - The chat object
+ * @param {string} senderId - The specific user we are replying to
+ */
+async function processReply(chat, senderId) {
     try {
-        await message.reply(aiReply);
+        // A. Start typing simulation
+        await chat.sendStateTyping();
+
+        // B. Fetch last 50 messages to find enough history for this specific user
+        const messages = await chat.fetchMessages({ limit: 50 });
+
+        // Filter: Keep only messages from this sender OR from the bot (assistant)
+        // This prevents mixing context from different people in a group.
+        const filteredHistory = messages
+            .filter(msg => msg.from === senderId || msg.fromMe)
+            .slice(-10) // Take last 10 relevant messages
+            .map(msg => ({
+                role: msg.fromMe ? 'assistant' : 'user',
+                content: msg.body
+            }));
+
+        // C. Generate AI Response
+        const aiReply = await generateResponse(filteredHistory);
+
+        // D. Random Delay before sending (Anti-ban: 2-4 seconds)
+        const delay = Math.floor(Math.random() * 2000) + 2000;
+
+        setTimeout(async () => {
+            try {
+                await chat.sendMessage(aiReply);
+                await chat.clearState(); // Stop typing simulation
+            } catch (err) {
+                console.error('Failed to send text reply:', err);
+            }
+        }, delay);
+
     } catch (err) {
-        console.error('Failed to send auto-reply:', err);
+        console.error('Error processing reply:', err);
+        await chat.clearState();
     }
 }
 

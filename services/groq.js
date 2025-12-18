@@ -7,23 +7,24 @@ const groq = new Groq({
 
 /**
  * Generate a response using Groq LLM API
- * @param {string} prompt - User message content
+ * @param {Array} history - Array of previous messages for context
  * @returns {Promise<string>} - AI generated reply
  */
-async function generateResponse(prompt) {
+async function generateResponse(history) {
     try {
         const chatCompletion = await groq.chat.completions.create({
             messages: [
                 {
                     role: 'system',
-                    content: 'Reply shortly and clearly for students and freshers. Keep it helpful and professional.'
+                    content: `You are a helpful assistant. Rules:
+1. Reply shortly and clearly (MAX 3 LINES).
+2. Handle greetings (Hi, Hello, etc.) naturally and friendly.
+3. Don't use bold characters or excessive emojis.
+4. Reply based on the provided conversation history.`
                 },
-                {
-                    role: 'user',
-                    content: prompt
-                }
+                ...history
             ],
-            model: 'openai/gpt-oss-120b', // Reliable and fast model
+            model: 'llama-3.3-70b-versatile',
         });
 
         return chatCompletion.choices[0]?.message?.content || "I'm sorry, I couldn't process that.";

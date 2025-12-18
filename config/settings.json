@@ -1,0 +1,12 @@
+{
+    "enabledGroups": [],
+    "autoReplyGroups": [],
+    "autoReplyPersonal": true,
+    "scheduledMessages": [
+        {
+            "groupId": "120363185313511239@g.us",
+            "message": "hello",
+            "time": "14:07"
+        }
+    ]
+}

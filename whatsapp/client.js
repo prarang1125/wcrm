@@ -6,7 +6,7 @@ const qrcode = require('qrcode-terminal');
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
-        headless: true,
+        headless: true, // Standard headless mode
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -14,10 +14,17 @@ const client = new Client({
             '--disable-accelerated-2d-canvas',
             '--no-first-run',
             '--no-zygote',
-            '--single-process', // <- helps on low-RAM EC2 instances
+            '--single-process',
             '--disable-gpu'
         ],
     }
+});
+
+// Added logging to track initialization steps
+console.log('Initializing WhatsApp Client...');
+
+client.on('loading_screen', (percent, message) => {
+    console.log('LOADING SCREEN:', percent, message);
 });
 
 client.on('qr', (qr) => {
